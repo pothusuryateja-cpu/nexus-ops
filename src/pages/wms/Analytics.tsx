@@ -1,7 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PageHeader, Progress, SectionLabel, StatBlock } from "@/components/wms/ui";
 import { useWarehouse } from "@/store/warehouse";
-import { DAY, detectBottlenecks, stockStatus } from "@/store/engine";
+import { DAY, detectBottlenecks, fulfillmentMetrics, stockStatus } from "@/store/engine";
 import { Bar, BarChart, CartesianGrid, Cell, Line, LineChart, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { useMemo } from "react";
 
@@ -55,7 +55,8 @@ export default function Analytics() {
   // ---- KPIs ----
   const recent7 = state.orders.filter((o) => Date.now() - new Date(o.createdAt).getTime() < 7 * DAY);
   const fulfilled7 = recent7.filter((o) => o.dispatchedAt);
-  const fulfillmentRate = recent7.length ? Math.round((fulfilled7.length / recent7.length) * 100) : 0;
+  const fm = fulfillmentMetrics(state);
+  const fulfillmentRate = fm.rate;
   const avgFulfillmentMin = fulfilled7.length
     ? Math.round(fulfilled7.reduce((s, o) => s + (new Date(o.dispatchedAt!).getTime() - new Date(o.createdAt).getTime()) / 60000, 0) / fulfilled7.length)
     : 0;
@@ -95,7 +96,7 @@ export default function Analytics() {
       />
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-        <Card><CardContent className="pt-5"><StatBlock label="Fulfillment rate (7d)" value={`${fulfillmentRate}%`} sub={`${fulfilled7.length} of ${recent7.length} orders shipped`} spark={[72, 78, 75, 84, 81, 88, fulfillmentRate]} /></CardContent></Card>
+        <Card><CardContent className="pt-5"><StatBlock label="Fulfillment rate (7d)" value={`${fulfillmentRate}%`} sub={`${fm.shipped} of ${fm.due} due orders shipped`} spark={daily.slice(-7).map((d) => d.dispatched)} /></CardContent></Card>
         <Card><CardContent className="pt-5"><StatBlock label="Avg fulfillment time" value={`${avgFulfillmentMin}m`} sub="created → dispatched" spark={[96, 88, 92, 74, 70, 68, avgFulfillmentMin]} /></CardContent></Card>
         <Card><CardContent className="pt-5"><StatBlock label="Picking efficiency" value={`${pickEfficiency}%`} sub={`${state.pickers.filter((p) => p.status === "Active").length} pickers active`} spark={[86, 88, 85, 90, 89, 91, pickEfficiency]} /></CardContent></Card>
         <Card><CardContent className="pt-5"><StatBlock label="Stockout rate" value={`${stockoutRate}%`} sub={`${stockouts} of ${state.products.length} SKUs empty`} spark={[5, 4, 6, 5, 4, 3, stockoutRate]} /></CardContent></Card>

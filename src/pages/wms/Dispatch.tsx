@@ -63,7 +63,7 @@ export default function Dispatch() {
     }
     const res = wh.createBatch(ids, carrier);
     if (res.ok) {
-      toast.success(`Batch ${state.batches[0]?.id ?? ""} created with ${ids.length} orders`);
+      toast.success(`Batch ${res.id ?? ""} created with ${ids.length} orders`);
       setShowNewBatch(false);
     } else toast.error(res.error ?? "Failed to create batch");
   };
@@ -81,13 +81,19 @@ export default function Dispatch() {
   };
 
   const dispatchSingle = (o: Order) => {
-    // dispatch a QC-passed order directly without a batch
+    // dispatch a QC-passed order directly through a one-order batch
     const batch = wh.createBatch([o.id], carrier);
-    if (batch.ok) {
-      const b = state.batches.find((x) => x.orderIds.includes(o.id) && x.status === "Planned");
-      if (b) wh.dispatchBatch(b.id);
-      toast.success(`${o.id} dispatched`);
-    } else toast.error(batch.error ?? "Dispatch failed");
+    if (!batch.ok) {
+      toast.error(batch.error ?? "Dispatch failed");
+      return;
+    }
+    if (!batch.id) {
+      toast.error("Dispatch failed — batch could not be created");
+      return;
+    }
+    const res = wh.dispatchBatch(batch.id);
+    if (res.ok) toast.success(`${o.id} dispatched · ${carrier}`);
+    else toast.error(res.error ?? "Dispatch failed");
   };
 
   return (

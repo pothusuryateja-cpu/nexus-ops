@@ -59,7 +59,7 @@ function loadState(): AppState {
   return seedState();
 }
 
-type Result = { ok: true } | { ok: false; error: string };
+type Result = { ok: true; id?: string } | { ok: false; error: string };
 
 // ------------------------------------------------------------
 // context
@@ -1035,6 +1035,7 @@ export function WarehouseProvider({ children }: { children: ReactNode }) {
       };
       draft.batches.push(batch);
       pushEvent(draft, `BATCH ${batch.id} created · ${orderIds.length} orders · ${batch.carrier}`, "dispatch", "info");
+      return { ok: true, id: batch.id };
     });
 
   const markBatchReady: WarehouseApi["markBatchReady"] = (id) =>

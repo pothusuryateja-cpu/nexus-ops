@@ -6,7 +6,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 
 const DEMO_STEPS = [
-  { title: "Normal operations", desc: "Baseline monitoring: 44 orders, 56 SKUs, 8 zones reporting nominal." },
+  { title: "Normal operations", desc: "Baseline monitoring — live counts of orders, SKUs and zone health." },
   { title: "Stock shortage occurs", desc: "SKU-204 drops below its reorder point — a shortage is detected." },
   { title: "System detects conflict", desc: "NEXUS cross-references live demand and flags an allocation conflict." },
   { title: "Priority engine runs", desc: "Every live order is re-scored from deadline, tier, age and risk." },
@@ -21,8 +21,11 @@ const DEMO_STEPS = [
 ];
 
 export function DemoOverlay() {
-  const { demoStep, updateSettings, resetData } = useWarehouse();
+  const { state, demoStep, updateSettings, resetData } = useWarehouse();
   const [step, setStep] = useState(0);
+  const stepDesc = step === 0
+    ? `${state.orders.length} orders · ${state.products.length} SKUs · 8 zones reporting nominal.`
+    : DEMO_STEPS[step].desc;
 
   const run = () => {
     if (step >= DEMO_STEPS.length) return;
@@ -103,7 +106,7 @@ export function DemoOverlay() {
                 <span className="font-mono text-xs text-copper">{String(step + 1).padStart(2, "0")}</span>
                 {DEMO_STEPS[step].title}
               </p>
-              <p className="mt-1 text-xs leading-5 text-muted-foreground">{DEMO_STEPS[step].desc}</p>
+              <p className="mt-1 text-xs leading-5 text-muted-foreground">{stepDesc}</p>
             </div>
             <Button className="h-9 shrink-0 gap-2" onClick={run} size="sm">
               <Play className="size-3.5" />

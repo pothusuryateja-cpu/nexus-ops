@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { useWarehouse } from "@/store/warehouse";
-import { stockStatus } from "@/store/engine";
+import { fulfillmentMetrics, stockStatus } from "@/store/engine";
 import { ArrowRight, BrainCircuit, GitBranch, PackageCheck, ScanSearch, ShieldAlert, SlidersHorizontal } from "lucide-react";
 import { Link } from "react-router";
 
@@ -58,8 +58,7 @@ const PIPELINE = ["Order", "Priority", "Allocate", "Pick", "Pack", "QC", "Dispat
 export default function Landing() {
   const { state } = useWarehouse();
   const activeOrders = state.orders.filter((o) => o.stage !== "Dispatched" && o.stage !== "Cancelled").length;
-  const fulfillment = state.orders.filter((o) => o.dispatchedAt).length;
-  const fulfillmentRate = state.orders.length ? Math.round((fulfillment / state.orders.length) * 100) : 0;
+  const fulfillmentRate = fulfillmentMetrics(state).rate;
   const healthy = state.products.filter((p) => stockStatus(p) === "Healthy").length;
   const health = state.products.length ? Math.round((healthy / state.products.length) * 100) : 0;
   const openExceptions = state.exceptions.filter((e) => e.status !== "Resolved").length;

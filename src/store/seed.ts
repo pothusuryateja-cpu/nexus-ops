@@ -223,6 +223,19 @@ const orderRows: OrderRow[] = [
   { id: "NXS-1042", customer: "Atlas Retail Group", tier: "Premium", items: [["SKU-204", 10], ["SKU-109", 2]], createdHoursAgo: 70, promisedFromNow: 1, stage: "Prioritized" },
   { id: "NXS-1043", customer: "Bloom & Bloom", tier: "Enterprise", items: [["SKU-402", 2], ["SKU-404", 2], ["SKU-409", 2]], createdHoursAgo: 3, promisedFromNow: 22, stage: "Allocated", missionId: "PX-109" },
   { id: "NXS-1044", customer: "Lumen Outfitters", tier: "Standard", items: [["SKU-301", 6], ["SKU-305", 6]], createdHoursAgo: 2, promisedFromNow: 24, stage: "Allocated" },
+  // ---- recent history (dispatched within the last 7 days) ----
+  { id: "NXS-1045", customer: "Summit Traders", tier: "Standard", items: [["SKU-203", 6], ["SKU-208", 3]], createdHoursAgo: 160, promisedFromNow: 156, stage: "Dispatched", dispatchedHoursAgo: 157 },
+  { id: "NXS-1046", customer: "Cascade Foods", tier: "Enterprise", items: [["SKU-502", 10], ["SKU-507", 6]], createdHoursAgo: 144, promisedFromNow: 140, stage: "Dispatched", dispatchedHoursAgo: 141 },
+  { id: "NXS-1047", customer: "Aurora Gifts", tier: "Standard", items: [["SKU-604", 4], ["SKU-606", 3]], createdHoursAgo: 128, promisedFromNow: 124, stage: "Dispatched", dispatchedHoursAgo: 125 },
+  { id: "NXS-1048", customer: "Monarch Home", tier: "Standard", items: [["SKU-401", 3], ["SKU-409", 4]], createdHoursAgo: 112, promisedFromNow: 108, stage: "Dispatched", dispatchedHoursAgo: 109 },
+  { id: "NXS-1049", customer: "Atlas Retail Group", tier: "Premium", items: [["SKU-101", 5], ["SKU-201", 4]], createdHoursAgo: 96, promisedFromNow: 92, stage: "Dispatched", dispatchedHoursAgo: 93 },
+  { id: "NXS-1050", customer: "Nordic Supply Co.", tier: "Premium", items: [["SKU-302", 5], ["SKU-306", 3]], createdHoursAgo: 80, promisedFromNow: 76, stage: "Dispatched", dispatchedHoursAgo: 77 },
+  { id: "NXS-1051", customer: "Vertex Electronics", tier: "Premium", items: [["SKU-105", 3], ["SKU-108", 2], ["SKU-110", 2]], createdHoursAgo: 66, promisedFromNow: 62, stage: "Dispatched", dispatchedHoursAgo: 63 },
+  { id: "NXS-1052", customer: "Bloom & Bloom", tier: "Enterprise", items: [["SKU-402", 2], ["SKU-406", 4]], createdHoursAgo: 52, promisedFromNow: 48, stage: "Dispatched", dispatchedHoursAgo: 49 },
+  { id: "NXS-1053", customer: "Harbor Market", tier: "Standard", items: [["SKU-501", 7], ["SKU-508", 4]], createdHoursAgo: 40, promisedFromNow: 36, stage: "Dispatched", dispatchedHoursAgo: 37 },
+  { id: "NXS-1054", customer: "Lumen Outfitters", tier: "Standard", items: [["SKU-301", 6], ["SKU-307", 2]], createdHoursAgo: 32, promisedFromNow: 28, stage: "Dispatched", dispatchedHoursAgo: 29 },
+  { id: "NXS-1055", customer: "Coastal Mart", tier: "Enterprise", items: [["SKU-503", 3], ["SKU-505", 2]], createdHoursAgo: 26, promisedFromNow: 22, stage: "Dispatched", dispatchedHoursAgo: 23 },
+  { id: "NXS-1056", customer: "Cascade Foods", tier: "Enterprise", items: [["SKU-504", 8], ["SKU-506", 5]], createdHoursAgo: 20, promisedFromNow: 16, stage: "Dispatched", dispatchedHoursAgo: 17 },
 ];
 
 function buildOrder(row: OrderRow, products: Product[]): Order {
@@ -621,7 +634,7 @@ export function seedState(): AppState {
   ];
 
   const counters: Counters = {
-    orderSeq: 1044, missionSeq: 110, exceptionSeq: 100, decisionSeq: 106, batchSeq: 42, eventSeq: 40, notifSeq: 20, historySeq: 1,
+    orderSeq: 1057, missionSeq: 110, exceptionSeq: 100, decisionSeq: 106, batchSeq: 42, eventSeq: 40, notifSeq: 20, historySeq: 1,
   };
 
   return {

@@ -5,7 +5,7 @@ import { WarehouseMap, computeZoneStats } from "@/components/wms/WarehouseMap";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useWarehouse } from "@/store/warehouse";
-import { DAY, detectBottlenecks, fmtAgo, fmtDateTime, fmtMoney, HOUR, stockStatus } from "@/store/engine";
+import { DAY, detectBottlenecks, fmtAgo, fmtDateTime, fmtMoney, fulfillmentMetrics, HOUR, stockStatus } from "@/store/engine";
 import { AlertTriangle, ArrowRight, BrainCircuit, CheckCircle2, Package, XCircle } from "lucide-react";
 import { useMemo } from "react";
 import { useNavigate, useSearchParams } from "react-router";
@@ -48,20 +48,8 @@ export default function CommandCenter() {
 
     const today = dayMap.get(dayKey(now))!;
     const yesterday = dayMap.get(dayKey(now - DAY))!;
-    const last7 = days.reduce((s, d) => s + d.created, 0);
-    const prev7 = state.orders.filter((o) => {
-      const t = new Date(o.createdAt).getTime();
-      return t >= now - 14 * DAY && t < now - 7 * DAY;
-    }).length;
-    const last7Fulfilled = days.reduce((s, d) => s + d.dispatched, 0);
-    const prev7Fulfilled = state.orders.filter((o) => {
-      const t = o.dispatchedAt ? new Date(o.dispatchedAt).getTime() : null;
-      return t !== null && t >= now - 14 * DAY && t < now - 7 * DAY;
-    }).length;
-    const prev7Created = state.orders.filter((o) => {
-      const t = new Date(o.createdAt).getTime();
-      return t >= now - 14 * DAY && t < now - 7 * DAY;
-    }).length;
+    const fm = fulfillmentMetrics(state);
+    const fmPrev = fulfillmentMetrics(state, now - 7 * DAY);
 
     const atRisk = state.orders.filter((o) => o.risk >= 70 && o.stage !== "Dispatched" && o.stage !== "Cancelled").length;
     const healthy = state.products.filter((p) => stockStatus(p) === "Healthy").length;
@@ -69,16 +57,15 @@ export default function CommandCenter() {
     const critical = state.exceptions.filter((e) => e.status !== "Resolved" && (e.severity === "Critical" || e.severity === "High")).length;
 
     const orderDelta = today.created - yesterday.created;
-    const fulfillmentRate = last7 ? Math.round((last7Fulfilled / last7) * 100) : 0;
-    const prevRate = prev7Created ? Math.round((prev7Fulfilled / prev7Created) * 100) : 0;
 
     return {
       ordersToday: today.created,
       orderDelta,
       orderSpark: days.map((d) => d.created),
-      fulfillmentRate,
-      fulfillmentDelta: fulfillmentRate - prevRate,
+      fulfillmentRate: fm.rate,
+      fulfillmentDelta: fm.shipped - fmPrev.shipped,
       fulfillmentSpark: days.map((d) => d.dispatched),
+      fulfillmentSub: `${fm.shipped} of ${fm.due} due orders shipped`,
       atRisk,
       atRiskSpark: days.map((d) => d.atRisk),
       inventoryHealth: Math.round((healthy / state.products.length) * 100),
@@ -136,7 +123,7 @@ export default function CommandCenter() {
       {/* KPI grid */}
       <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
         <KpiCard label="Orders Today" value={kpis.ordersToday} delta={kpis.orderDelta} suffix="" spark={kpis.orderSpark} sub={`${state.orders.filter((o) => o.stage === "Dispatched").length} dispatched total`} />
-        <KpiCard label="Fulfillment Rate" value={`${kpis.fulfillmentRate}%`} delta={kpis.fulfillmentDelta} spark={kpis.fulfillmentSpark} sub="last 7 days" tone={kpis.fulfillmentRate >= 75 ? "ok" : kpis.fulfillmentRate >= 60 ? "warn" : "danger"} />
+        <KpiCard label="Fulfillment Rate" value={`${kpis.fulfillmentRate}%`} delta={kpis.fulfillmentDelta} suffix=" shipped" spark={kpis.fulfillmentSpark} sub={kpis.fulfillmentSub} tone={kpis.fulfillmentRate >= 75 ? "ok" : kpis.fulfillmentRate >= 45 ? "warn" : "danger"} />
         <KpiCard label="Orders At Risk" value={kpis.atRisk} delta={-kpis.atRisk} suffix="" spark={kpis.atRiskSpark} sub="risk score ≥ 70" tone={kpis.atRisk === 0 ? "ok" : kpis.atRisk <= 3 ? "warn" : "danger"} />
         <KpiCard label="Inventory Health" value={`${kpis.inventoryHealth}%`} spark={kpis.inventorySpark} sub={`${state.products.filter((p) => stockStatus(p) === "Healthy").length}/${state.products.length} SKUs healthy`} tone={kpis.inventoryHealth >= 80 ? "ok" : kpis.inventoryHealth >= 65 ? "warn" : "danger"} />
         <KpiCard label="Active Pickers" value={kpis.pickersActive} suffix="" sub={`${state.pickers.length} total · ${state.missions.filter((m) => m.status === "Active").length} missions live`} tone={kpis.pickersActive >= 3 ? "ok" : "warn"} />

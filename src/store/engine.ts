@@ -345,8 +345,9 @@ export function detectBottlenecks(state: AppState): BottleneckReport[] {
   const missions = state.missions;
   const delayedMissions = missions.filter((m) => m.status === "Delayed").length;
   const activeMissions = missions.filter((m) => m.status === "Active" || m.status === "Paused").length;
-  const avgPick = missions.length
-    ? missions.reduce((s, m) => s + m.elapsedMin, 0) / Math.max(1, activeMissions + delayedMissions)
+  const timedMissions = missions.filter((m) => m.elapsedMin > 0);
+  const avgPick = timedMissions.length
+    ? timedMissions.reduce((s, m) => s + m.elapsedMin, 0) / timedMissions.length
     : 4.2;
   reports.push({
     stage: "Picking",
@@ -400,6 +401,26 @@ export function detectBottlenecks(state: AppState): BottleneckReport[] {
   });
 
   return reports.sort((a, b) => b.impactMin - a.impactMin);
+}
+
+// ------------------------------------------------------------
+// FULFILLMENT METRICS — shipped vs due over a window
+// An order is "due" once it has had a full day to ship; already
+// shipped or cancelled orders always count toward the cohort.
+// ------------------------------------------------------------
+export function fulfillmentMetrics(state: AppState, now: number = Date.now()) {
+  const week = now - 7 * DAY;
+  const shipped = state.orders.filter((o) => {
+    const t = o.dispatchedAt ? new Date(o.dispatchedAt).getTime() : 0;
+    return t >= week;
+  }).length;
+  const due = state.orders.filter((o) => {
+    const created = new Date(o.createdAt).getTime();
+    if (created < week) return false;
+    if (o.dispatchedAt || o.stage === "Cancelled") return true;
+    return now - created >= DAY;
+  }).length;
+  return { shipped, due, rate: due > 0 ? Math.round((shipped / due) * 100) : 0 };
 }
 
 // ------------------------------------------------------------
