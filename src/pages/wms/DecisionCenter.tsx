@@ -14,8 +14,10 @@ import { useWarehouse } from "@/store/warehouse";
 import { fmtAgo, fmtMoney } from "@/store/engine";
 import type { Decision } from "@/store/types";
 import { BrainCircuit, Check, CheckCircle2, Layers, PackageSearch, Timer, TrendingUp, X } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useSearchParams } from "react-router";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 
 const KIND_META: Record<string, { icon: typeof BrainCircuit; hint: string }> = {
   "Stock Conflict": { icon: PackageSearch, hint: "Demand exceeds available stock for an SKU" },
@@ -28,12 +30,21 @@ const KIND_META: Record<string, { icon: typeof BrainCircuit; hint: string }> = {
 export default function DecisionCenter() {
   const wh = useWarehouse();
   const { state } = wh;
+  const [params, setParams] = useSearchParams();
+  const focusId = params.get("decision");
+  const cardRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const [modifyTarget, setModifyTarget] = useState<Decision | null>(null);
   const [altOption, setAltOption] = useState<string>("");
   const [altQty, setAltQty] = useState<number>(0);
 
   const pending = state.decisions.filter((d) => d.status === "Pending");
   const resolved = state.decisions.filter((d) => d.status !== "Pending");
+
+  useEffect(() => {
+    if (!focusId) return;
+    const el = cardRefs.current[focusId];
+    if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
+  }, [focusId, pending.length]);
 
   const grouped = useMemo(() => {
     const map = new Map<string, Decision[]>();
@@ -84,6 +95,24 @@ export default function DecisionCenter() {
         description="NEXUS detects conflicts, computes options, and recommends one. Approve to execute, reject to decline, or modify to choose your own allocation."
       />
 
+      {focusId && (
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-9 gap-1 border-copper/40 text-xs text-copper"
+            onClick={() => {
+              const next = new URLSearchParams(params);
+              next.delete("decision");
+              setParams(next);
+            }}
+          >
+            Focused: {focusId} <X className="size-3" />
+          </Button>
+          <span className="text-[11px] text-muted-foreground">Opened from a notification — decision highlighted below.</span>
+        </div>
+      )}
+
       <div className="grid gap-4 sm:grid-cols-3">
         <Card>
           <CardContent className="pt-5">
@@ -126,7 +155,12 @@ export default function DecisionCenter() {
               <p className="ml-auto hidden text-[11px] text-muted-foreground sm:block">{meta.hint}</p>
             </div>
             {list.map((d) => (
-              <Card key={d.id} className="border-border/80">
+              <div
+                key={d.id}
+                ref={(el) => { cardRefs.current[d.id] = el; }}
+                className={cn("scroll-mt-24 rounded-lg", focusId === d.id && "ring-2 ring-copper/70 ring-offset-2 ring-offset-background")}
+              >
+              <Card className="border-border/80">
                 <CardContent className="flex flex-col gap-3 py-4">
                   <div className="flex flex-wrap items-center gap-2">
                     <Mono className="text-[12px] font-semibold text-foreground">{d.id}</Mono>
@@ -181,6 +215,7 @@ export default function DecisionCenter() {
                   </div>
                 </CardContent>
               </Card>
+              </div>
             ))}
           </div>
         );

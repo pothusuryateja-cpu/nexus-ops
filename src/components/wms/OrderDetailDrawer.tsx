@@ -1,10 +1,22 @@
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Mono, SectionLabel, StatusPill, Progress, ScoreBar } from "@/components/wms/ui";
 import { useWarehouse } from "@/store/warehouse";
 import { fmtAgo, fmtDateTime, fmtMoney, stockStatus } from "@/store/engine";
+import type { Tier } from "@/store/types";
 import {
   Ban,
   CheckCircle2,
@@ -12,14 +24,22 @@ import {
   Flag,
   Layers,
   PackageCheck,
+  Pencil,
   PlayCircle,
   Split,
   Truck,
   Undo2,
 } from "lucide-react";
+import { useState } from "react";
 import { toast } from "sonner";
 import { useNavigate } from "react-router";
 import { cn } from "@/lib/utils";
+
+function toLocalInput(iso: string): string {
+  const d = new Date(iso);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
 
 const STAGE_ORDER = ["Created", "Prioritized", "Allocated", "Picking", "Packing", "QC", "Dispatched"];
 
@@ -41,6 +61,10 @@ export function OrderDetailDrawer({
   const { state } = wh;
   const navigate = useNavigate();
   const order = orderId ? state.orders.find((o) => o.id === orderId) : undefined;
+  const [editOpen, setEditOpen] = useState(false);
+  const [editCustomer, setEditCustomer] = useState("");
+  const [editTier, setEditTier] = useState<Tier>("Standard");
+  const [editPromised, setEditPromised] = useState("");
 
   if (!order) return null;
 
@@ -48,6 +72,31 @@ export function OrderDetailDrawer({
   const stageIdx = STAGE_ORDER.indexOf(order.stage);
 
   const close = () => onOpenChange(false);
+
+  const openEdit = () => {
+    setEditCustomer(order.customer);
+    setEditTier(order.tier);
+    setEditPromised(toLocalInput(order.promisedAt));
+    setEditOpen(true);
+  };
+
+  const saveEdit = () => {
+    if (!editCustomer.trim()) {
+      toast.error("Customer name is required.");
+      return;
+    }
+    const res = wh.updateOrder(order.id, {
+      customer: editCustomer.trim(),
+      tier: editTier,
+      promisedAt: new Date(editPromised).toISOString(),
+    });
+    if (res.ok) {
+      toast.success(`${order.id} updated`);
+      setEditOpen(false);
+    } else {
+      toast.error(res.error ?? "Update failed");
+    }
+  };
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -90,6 +139,11 @@ export function OrderDetailDrawer({
           <div className="px-5 py-4">
             {/* actions */}
             <div className="flex flex-wrap items-center gap-2">
+              {order.stage !== "Dispatched" && order.stage !== "Cancelled" && (
+                <Button size="sm" variant="outline" className="gap-1.5" onClick={openEdit}>
+                  <Pencil className="size-3.5" /> Edit
+                </Button>
+              )}
               {(order.stage === "Created" || order.stage === "Prioritized" || order.stage === "Held") && (
                 <>
                   <Button size="sm" className="gap-1.5" onClick={() => { run(wh.allocateOrder(order.id), `${order.id} allocated`); }}>
@@ -238,6 +292,43 @@ export function OrderDetailDrawer({
           </div>
         </ScrollArea>
       </SheetContent>
+
+      {/* edit order dialog */}
+      <Dialog open={editOpen} onOpenChange={setEditOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Edit order — <Mono>{order.id}</Mono></DialogTitle>
+            <DialogDescription>
+              Changes update the order record immediately. Re-scoring priority and risk picks up the new tier and promise window.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col gap-3">
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="edit-customer">Customer</Label>
+              <Input id="edit-customer" value={editCustomer} onChange={(e) => setEditCustomer(e.target.value)} placeholder="Customer name" />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="edit-tier">Customer tier</Label>
+              <Select value={editTier} onValueChange={(v) => setEditTier(v as Tier)}>
+                <SelectTrigger id="edit-tier" className="w-full"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Standard">Standard</SelectItem>
+                  <SelectItem value="Enterprise">Enterprise</SelectItem>
+                  <SelectItem value="Premium">Premium</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="edit-promised">Promise window</Label>
+              <Input id="edit-promised" type="datetime-local" value={editPromised} onChange={(e) => setEditPromised(e.target.value)} />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditOpen(false)}>Cancel</Button>
+            <Button onClick={saveEdit}>Save changes</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Sheet>
   );
 }

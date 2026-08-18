@@ -16,11 +16,12 @@ import { OrderDetailDrawer } from "@/components/wms/OrderDetailDrawer";
 import { useWarehouse } from "@/store/warehouse";
 import { fmtDateTime, fmtMoney } from "@/store/engine";
 import type { Order, Tier } from "@/store/types";
-import { Ban, Layers, PackagePlus, Plus, Search, X } from "lucide-react";
+import { Ban, Download, Layers, PackagePlus, Plus, Search, X } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useSearchParams } from "react-router";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { downloadCsv } from "@/lib/csv";
 
 const STAGE_FILTERS = ["All", "Created", "Prioritized", "Allocated", "Picking", "Packing", "QC", "Dispatched"] as const;
 const SORTS = [
@@ -93,6 +94,26 @@ export default function Orders() {
     setParams(next);
   };
 
+  const exportOrders = () => {
+    downloadCsv(
+      "nexus-orders.csv",
+      ["Order", "Customer", "Tier", "Stage", "Priority", "Risk", "Value", "Units", "Created", "Promised"],
+      filtered.map((o) => [
+        o.id,
+        o.customer,
+        o.tier,
+        o.stage,
+        o.priority,
+        o.risk,
+        `$${o.value.toFixed(2)}`,
+        o.totalQty,
+        fmtDateTime(o.createdAt),
+        fmtDateTime(o.promisedAt),
+      ]),
+    );
+    toast.success(`Exported ${filtered.length} orders`);
+  };
+
   const submitNew = () => {
     const items = rows.filter(([sku, qty]) => sku.trim() && qty > 0).map(([sku, qty]) => ({ sku: sku.trim(), qty }));
     const res = wh.createOrder({ customer, tier, items });
@@ -113,9 +134,14 @@ export default function Orders() {
         title="Order management"
         description="Every order runs through the same pipeline — prioritize, allocate, pick, pack, QC, dispatch — with the priority engine scoring each one live."
         actions={
-          <Button className="gap-1.5" onClick={() => setShowNew(true)}>
-            <Plus className="size-4" /> New order
-          </Button>
+          <>
+            <Button variant="outline" className="gap-1.5" onClick={exportOrders} disabled={filtered.length === 0}>
+              <Download className="size-4" /> Export
+            </Button>
+            <Button className="gap-1.5" onClick={() => setShowNew(true)}>
+              <Plus className="size-4" /> New order
+            </Button>
+          </>
         }
       />
 

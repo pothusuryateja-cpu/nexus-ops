@@ -6,8 +6,9 @@ import { Mono, PageHeader, SeverityPill, StatusPill, StatBlock } from "@/compone
 import { useWarehouse } from "@/store/warehouse";
 import { fmtAgo, fmtDateTime } from "@/store/engine";
 import type { ExceptionRecord } from "@/store/types";
-import { CheckCircle2, Eye, MessageSquareWarning, Play, RefreshCcw, Search, ShieldAlert } from "lucide-react";
-import { useMemo, useState } from "react";
+import { CheckCircle2, Eye, MessageSquareWarning, Play, RefreshCcw, Search, ShieldAlert, X } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useSearchParams } from "react-router";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
@@ -56,9 +57,13 @@ function NextAction({ ex }: { ex: ExceptionRecord }) {
 export default function Exceptions() {
   const wh = useWarehouse();
   const { state } = wh;
+  const [params, setParams] = useSearchParams();
   const [query, setQuery] = useState("");
   const [type, setType] = useState<string>("All");
   const [status, setStatus] = useState<string>("All");
+  const zoneFilter = params.get("zone");
+  const focusId = params.get("exception");
+  const cardRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
   const open = state.exceptions.filter((e) => e.status !== "Resolved");
   const critical = open.filter((e) => e.severity === "Critical");
@@ -74,10 +79,34 @@ export default function Exceptions() {
     });
     if (type !== "All") list = list.filter((e) => e.type === type);
     if (status !== "All") list = list.filter((e) => e.status === status);
+    if (zoneFilter) list = list.filter((e) => e.zone === zoneFilter);
     const q = query.trim().toLowerCase();
     if (q) list = list.filter((e) => (e.id + e.type + (e.sku ?? "") + (e.orderId ?? "") + (e.cause ?? "")).toLowerCase().includes(q));
     return list;
-  }, [state.exceptions, type, status, query]);
+  }, [state.exceptions, type, status, query, zoneFilter]);
+
+  // deep link: keep the focused exception visible even under filters, then scroll to it
+  const focused = focusId ? state.exceptions.find((e) => e.id === focusId) : undefined;
+  const displayed = focused ? [focused, ...filtered.filter((e) => e.id !== focusId)] : filtered;
+
+  useEffect(() => {
+    if (!focusId) return;
+    const el = cardRefs.current[focusId];
+    if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
+  }, [focusId, displayed.length]);
+
+  const clearParam = (key: string) => {
+    const next = new URLSearchParams(params);
+    next.delete(key);
+    setParams(next);
+  };
+
+  const clearAllFilters = () => {
+    setQuery("");
+    setType("All");
+    setStatus("All");
+    setParams({});
+  };
 
   const stages = ["Detected", "Analyzing", "Decision Required", "In Progress", "Resolved"];
   const stageIndex = (s: string) => stages.indexOf(s);
@@ -130,11 +159,31 @@ export default function Exceptions() {
             {STATUSES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
           </SelectContent>
         </Select>
+        {zoneFilter && (
+          <Button variant="outline" size="sm" className="h-9 gap-1 text-xs" onClick={() => clearParam("zone")}>
+            Zone {zoneFilter} <X className="size-3" />
+          </Button>
+        )}
+        {focusId && (
+          <Button variant="outline" size="sm" className="h-9 gap-1 border-copper/40 text-xs text-copper" onClick={() => clearParam("exception")}>
+            Focused: {focusId} <X className="size-3" />
+          </Button>
+        )}
+        {(query || type !== "All" || status !== "All" || zoneFilter) && (
+          <Button variant="ghost" size="sm" className="h-9 text-xs text-muted-foreground" onClick={clearAllFilters}>
+            Clear filters
+          </Button>
+        )}
       </div>
 
       <div className="grid gap-4 xl:grid-cols-2">
-        {filtered.map((ex) => (
-          <Card key={ex.id} className={ex.severity === "Critical" && ex.status !== "Resolved" ? "border-danger/40" : undefined}>
+        {displayed.map((ex) => (
+          <div
+            key={ex.id}
+            ref={(el) => { cardRefs.current[ex.id] = el; }}
+            className={cn("scroll-mt-24 rounded-lg", focusId === ex.id && "ring-2 ring-copper/70 ring-offset-2 ring-offset-background")}
+          >
+          <Card className={ex.severity === "Critical" && ex.status !== "Resolved" ? "border-danger/40" : undefined}>
             <CardContent className="flex flex-col gap-3 py-4">
               <div className="flex flex-wrap items-center gap-2">
                 <Mono className="text-[12px] font-semibold text-foreground">{ex.id}</Mono>
@@ -193,6 +242,7 @@ export default function Exceptions() {
               </div>
             </CardContent>
           </Card>
+          </div>
         ))}
         {filtered.length === 0 && (
           <div className="xl:col-span-2">

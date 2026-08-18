@@ -16,11 +16,12 @@ import { Mono, PageHeader, Progress, SectionLabel, StatusPill } from "@/componen
 import { useWarehouse } from "@/store/warehouse";
 import { fmtMoney, stockStatus } from "@/store/engine";
 import { findConflicts } from "@/store/engine";
-import { Boxes, PackageCheck, PackagePlus, ScanLine, Search, Truck, X } from "lucide-react";
+import { Boxes, Download, PackageCheck, PackagePlus, ScanLine, Search, Truck, X } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { downloadCsv } from "@/lib/csv";
 
 const CATEGORIES = ["All", "Electronics", "Accessories", "Apparel", "Home", "Grocery", "Fragile"];
 const STATUSES = ["All", "Healthy", "Low", "Critical", "Out of Stock"];
@@ -81,6 +82,27 @@ export default function Inventory() {
   const out = state.products.filter((p) => stockStatus(p) === "Out of Stock").length;
   const incoming = state.products.reduce((s, p) => s + p.incoming, 0);
 
+  const exportProducts = () => {
+    downloadCsv(
+      "nexus-inventory.csv",
+      ["SKU", "Product", "Category", "Zone", "Available", "Reserved", "Damaged", "Incoming", "ReorderPt", "Status", "UnitPrice"],
+      filtered.map((p) => [
+        p.sku,
+        p.name,
+        p.category,
+        p.zone,
+        p.available,
+        p.reserved,
+        p.damaged,
+        p.incoming,
+        p.reorderPoint,
+        stockStatus(p),
+        `$${p.price.toFixed(2)}`,
+      ]),
+    );
+    toast.success(`Exported ${filtered.length} SKUs`);
+  };
+
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
@@ -99,6 +121,9 @@ export default function Inventory() {
             </Button>
             <Button variant="outline" size="sm" className="h-8 gap-1.5 text-xs" onClick={() => setStatus("Critical")}>
               <PackagePlus className="size-3.5" /> Review critical
+            </Button>
+            <Button variant="outline" size="sm" className="h-8 gap-1.5 text-xs" onClick={exportProducts} disabled={filtered.length === 0}>
+              <Download className="size-3.5" /> Export
             </Button>
           </>
         }

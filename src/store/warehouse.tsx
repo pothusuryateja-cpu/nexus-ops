@@ -35,6 +35,7 @@ import {
   snapshot,
 } from "./engine";
 import { seedState } from "./seed";
+import { playAlert } from "@/lib/sound";
 
 const STORAGE_KEY = "nexus-wms-state-v1";
 
@@ -215,6 +216,13 @@ export function WarehouseProvider({ children }: { children: ReactNode }) {
       { id: `NT-${draft.counters.notifSeq++}`, type, title, body, read: false, createdAt: nowIso(), navigateTo },
       ...draft.notifications,
     ].slice(0, 40);
+    if (draft.settings.sound) {
+      playAlert(
+        type === "Critical Stock" || type === "Exception" || type === "Order Delay"
+          ? "critical"
+          : "info",
+      );
+    }
   };
 
   // ==========================================================
@@ -417,8 +425,14 @@ export function WarehouseProvider({ children }: { children: ReactNode }) {
     update((draft) => {
       const o = orderById(draft, id);
       if (!o) return { ok: false, error: `Order ${id} not found.` };
-      if (patch.promisedAt) o.promisedAt = patch.promisedAt;
-      if (patch.customer) o.customer = patch.customer;
+      if (patch.promisedAt) {
+        o.promisedAt = patch.promisedAt;
+        o.history.push({ at: nowIso(), label: "Promise window updated", detail: new Date(patch.promisedAt).toLocaleString() });
+      }
+      if (patch.customer) {
+        o.customer = patch.customer;
+        o.history.push({ at: nowIso(), label: "Customer updated", detail: patch.customer });
+      }
       if (patch.tier) {
         o.tier = patch.tier;
         o.history.push({ at: nowIso(), label: "Customer tier updated", detail: `Now ${patch.tier}` });
